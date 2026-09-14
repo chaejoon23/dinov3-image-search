@@ -1,35 +1,3 @@
-"""사전학습 가중치 유무에 따른 검색 품질 비교.
-
-## 왜 이 스크립트가 있나
-
-이 레포의 임베딩 추출 코드는 `pretrained=False`로 DINOv3를 로드하고 있었다.
-
-    # image_search_app.py:34, mapillary_search_app.py:37
-    model = torch.hub.load("./dinov3", model_name, source="local", pretrained=False)
-
-즉 **랜덤 초기화된 ViT**로 임베딩을 뽑고 있었다. 랜덤 초기화 ViT도 무작위 투영처럼
-동작해 저수준 구조(색 분포, 대략적 배치)는 어느 정도 보존하므로 검색 결과가 "그럭저럭
-비슷해 보이는" 일이 생긴다. 그래서 눈으로는 버그를 알아채기 어렵다. 하지만 그건
-DINOv3의 자기지도 특징이 아니다.
-
-이 스크립트는 그 차이를 정량화한다.
-
-## 지표
-
-Precision@k — 질의 이미지의 상위 k개 이웃 중 같은 클래스인 비율. 클래스 레이블은
-**평가에만** 쓰고 임베딩 추출에는 쓰지 않는다(자기지도 특징의 선형 분리성을 재는
-표준 방식인 kNN 평가와 같은 취지).
-
-## 사용법
-
-    pip install torch transformers pillow numpy
-
-    # 클래스별 하위 폴더 구조: images_dir/<class>/<image>.jpg
-    python ablation_pretrained.py --images-dir ./sample_images
-
-출력된 표를 README에 그대로 붙이면 된다.
-"""
-
 from __future__ import annotations
 
 import argparse
