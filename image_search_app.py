@@ -35,7 +35,7 @@ def load_model_and_database(
         "./dinov3",
         model_name,
         source="local",
-        pretrained=False
+        pretrained=True
     )
     model = model.to(device)
     model.eval()

@@ -25,7 +25,8 @@ def run_dinov3_smoke_test(device):
 
     try:
         # 1. 모델 로드 (로컬 DINOv3 리포지토리 사용)
-        # pretrained=False로 설정하여 가중치 없이 모델 구조만 로드합니다.
+        # 이 스모크 테스트는 "모델 구조가 로드되는가"만 확인하므로 의도적으로
+        # 가중치를 받지 않는다. 실제 검색 경로는 사전학습 가중치를 써야 한다.
         print("1. DinoV3 (ViT-Small/16) 모델 로드 중... (가중치 없이 초기화)")
         start_load = time.time()
         model = torch.hub.load(

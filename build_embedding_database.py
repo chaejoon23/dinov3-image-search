@@ -22,14 +22,14 @@ def get_device():
         return torch.device("cpu")
 
 
-def load_dinov3_model(model_name="dinov3_vits16", device=None, pretrained=False):
+def load_dinov3_model(model_name="dinov3_vits16", device=None, pretrained=True):
     """
     Load DINOv3 model from local repository.
 
     Args:
         model_name: Model architecture to use (default: dinov3_vits16)
         device: Device to load model on (default: auto-detect)
-        pretrained: Whether to load pretrained weights (default: False)
+        pretrained: Whether to load pretrained weights (default: True)
 
     Returns:
         model: Loaded DINOv3 model
@@ -37,6 +37,14 @@ def load_dinov3_model(model_name="dinov3_vits16", device=None, pretrained=False)
     """
     if device is None:
         device = get_device()
+
+    if not pretrained:
+        # 랜덤 초기화 임베딩은 DINOv3의 자기지도 특징이 아니다. 조용히 넘어가면
+        # "돌아가는 것처럼 보이는" 잘못된 검색 결과가 나온다(README의 ablation 참고).
+        print(
+            "[경고] pretrained=False — 랜덤 초기화 모델입니다. "
+            "이 임베딩은 DINOv3의 자기지도 특징이 아닙니다(ablation 전용)."
+        )
 
     print(f"Loading {model_name} on {device}...")
 
@@ -118,7 +126,7 @@ def build_database(
     images_dir="./sample_images",
     output_file="./embeddings_database.pkl",
     model_name="dinov3_vits16",
-    pretrained=False
+    pretrained=True
 ):
     """
     Build embedding database from directory of images.
@@ -204,10 +212,12 @@ if __name__ == "__main__":
         help="DINOv3 model name"
     )
     parser.add_argument(
-        "--pretrained",
-        action="store_true",
-        help="Use pretrained weights (requires weights file)"
+        "--no-pretrained",
+        dest="pretrained",
+        action="store_false",
+        help="랜덤 초기화로 실행 (ablation 전용 — 정상 검색에는 쓰지 말 것)"
     )
+    parser.set_defaults(pretrained=True)
 
     args = parser.parse_args()
 

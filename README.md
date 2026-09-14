@@ -1,399 +1,163 @@
-# DINOv3 Image Similarity Search System
+# DINOv3 Image Search
 
-Visual similarity search system powered by Meta's DINOv3 vision foundation model. Find similar images using deep learning embeddings and cosine similarity.
+**거리 사진 한 장으로 같은 장소를 찾는다.** DINOv3의 자기지도 특징으로 이미지를 384차원
+벡터로 바꿔, 코사인 유사도로 시각적으로 닮은 이미지를 검색합니다. 후쿠오카 거리영상
+243장에는 GPS 좌표·촬영시각·나침반 방위가 붙어 있어, 검색 결과가 곧 위치 추정이 됩니다.
 
----
-
-## 🚀 Quick Start
-
-### Launch Web Interfaces
-
-**CIFAR-10 Demo** (1,000 sample images):
-```bash
-python image_search_app.py --port 7860
-```
-Access at: http://localhost:7860
-
-**Fukuoka Mapillary** (243 street-level images):
-```bash
-python mapillary_search_app.py --port 7861
-```
-Access at: http://localhost:7861
+<!-- TODO: Gradio UI에서 "질의 이미지 + 상위 5개 결과 + 유사도 점수"가 한 화면에 보이는
+     스크린샷을 찍어 docs/search-results.png 로 넣고 아래 줄의 주석을 해제하세요.
+     README에서 가장 먼저 읽히는 자리입니다. -->
+<!-- ![검색 결과](docs/search-results.png) -->
 
 ---
 
-## ✨ Features
+## 사전학습 가중치가 실제로 얼마나 기여하는가
 
-### Two Complete Search Systems
+이 레포의 핵심 실험입니다. 처음 구현에서 저는 모델을 이렇게 올리고 있었습니다.
 
-**1. CIFAR-10 Demo System**
-- 1,000 images across 10 categories
-- Quick demonstration and testing
-- Categories: airplanes, automobiles, birds, cats, deer, dogs, frogs, horses, ships, trucks
-
-**2. Fukuoka Mapillary System**
-- 243 real-world street-level images from Fukuoka, Japan
-- GPS coordinates, capture dates, compass directions
-- Direct links to view on Mapillary
-- Rich metadata for each result
-
-### Core Capabilities
-
-- ⚡ **Instant Search**: Pre-computed embeddings enable sub-second search
-- 🎯 **Accurate Matching**: DINOv3's self-supervised learning captures rich visual features
-- 🌐 **Easy to Use**: Web-based Gradio interface
-- 📍 **Geospatial**: GPS coordinates and location metadata
-- 🖥️ **GPU Accelerated**: Supports MPS (Apple Silicon), CUDA, and CPU
-
----
-
-## 🎯 What Can You Do?
-
-1. **Upload any image** to find visually similar images
-2. **Search across datasets**: CIFAR-10 demo or real-world Mapillary imagery
-3. **View similarity scores** ranging from 0 to 1
-4. **Access metadata**: GPS location, capture time, image details
-5. **Download more data**: Expand Mapillary coverage to other cities
-
----
-
-## 📊 System Specifications
-
-**Model:** DINOv3 ViT-S/16
-- 21 million parameters
-- 384-dimensional embeddings
-- Self-supervised training on 1.69B images
-
-**Performance:**
-- Embedding extraction: ~55-77 images/second (Apple Silicon MPS)
-- Search time: < 1ms for 1,000 images
-- GPU/CPU support: MPS, CUDA, or CPU fallback
-
-**Databases:**
-- CIFAR-10: 1,000 images, 1.46 MB embeddings
-- Fukuoka: 243 images, 0.36 MB embeddings
-
----
-
-## 📚 Documentation
-
-### Start Here
-- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete documentation index and navigation guide
-
-### Quick References
-- **[QUICK_START.md](QUICK_START.md)** - Commands, troubleshooting, quick reference
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Visual diagrams and system architecture
-
-### Complete Guide
-- **[README_IMAGE_SEARCH.md](README_IMAGE_SEARCH.md)** - Comprehensive technical documentation
-  - How it works (step-by-step)
-  - Technical deep dive into DINOv3
-  - Usage guide with all options
-  - Advanced topics and customization
-  - Troubleshooting
-
----
-
-## 🛠️ Installation & Setup
-
-### Prerequisites
-- Python 3.8+
-- 4GB RAM minimum (8GB recommended)
-- Optional: GPU (MPS/CUDA) for faster processing
-
-### Environment Setup
-```bash
-# Already set up in this project
-source venv/bin/activate
-
-# Verify installation
-pip list | grep -E "torch|gradio|numpy"
+```python
+model = torch.hub.load("./dinov3", model_name, source="local", pretrained=False)
+#                                                              ^^^^^^^^^^^^^^^^^
 ```
 
-### Download Sample Data
-```bash
-# CIFAR-10 dataset (1000 images)
-python download_dataset.py
+`pretrained=False`는 **랜덤 초기화**입니다. 즉 DINOv3의 구조만 쓰고 자기지도 학습으로
+얻은 가중치는 전혀 쓰지 않은 상태로 임베딩을 뽑고 있었습니다.
 
-# Fukuoka Mapillary images (requires API token)
-python download_mapillary_fukuoka.py --token "YOUR_TOKEN" --count 500
+**그런데 데모는 돌아가는 것처럼 보였습니다.** 랜덤 초기화 ViT도 무작위 투영처럼 작동해서
+색 분포나 대략적인 구도 같은 저수준 구조는 어느 정도 보존합니다. 그래서 검색 결과가
+"그럭저럭 비슷해 보이는" 이미지를 돌려주고, 눈으로는 버그를 알아채기 어렵습니다.
+
+측정해서 확인했습니다.
+
+| 설정 | Precision@1 | Precision@5 | Precision@10 |
+|---|---:|---:|---:|
+| DINOv3 사전학습 | TODO | TODO | TODO |
+| 랜덤 초기화 | TODO | TODO | TODO |
+| 무작위 기대값 | TODO | TODO | TODO |
+
+<!-- TODO: python ablation_pretrained.py --images-dir ./sample_images 를 실행하고
+     출력된 마크다운 표로 위를 교체하세요. -->
+
+Precision@k는 질의 이미지의 상위 k개 이웃 중 같은 클래스인 비율입니다. **클래스 레이블은
+평가에만 쓰고 임베딩 추출에는 쓰지 않습니다** — 자기지도 특징의 품질을 재는 kNN 평가와
+같은 방식입니다.
+
+재현:
+
+```bash
+python ablation_pretrained.py --images-dir ./sample_images
 ```
 
-### Build Embeddings
+교훈은 두 가지였습니다. **"돌아간다"가 "맞게 돌아간다"는 뜻이 아니고**, 무작위 기대값을
+기준선으로 깔아두지 않으면 얼마나 잘하는지 알 수 없다는 것.
+
+---
+
+## 왜 이 문제인가
+
+영상·사진에서 **장소를 알아내는 문제**를 계속 보고 있습니다.
+
+이 레포는 그중 "한 장의 사진이 어디인가"를 임베딩 유사도로 푸는 쪽입니다. 같은 관심의
+다른 축 — 영상에서 어떤 프레임을 골라 봐야 하는가, 어두운 프레임을 어떻게 읽을 수 있게
+만드는가 — 는 [**Bin_pind**](https://github.com/chaejoon23/Bin_pind)의 비전 프론트엔드에
+있습니다. 그쪽은 DINOv3를 **장면 중복 제거**에 쓰고, 이 레포는 **검색**에 씁니다.
+같은 모델을 서로 다른 목적에 붙여본 셈입니다.
+
+---
+
+## 구조
+
+```
+질의 이미지
+    │
+    ├─ 전처리: Resize → CenterCrop → Normalize
+    ├─ DINOv3 ViT-S/16 → CLS 토큰 384차원
+    └─ L2 정규화
+    │
+    ▼
+코사인 유사도 = 정규화된 DB 행렬 @ 질의 벡터   (내적 한 번)
+    │
+    ▼
+상위 K개 + 메타데이터(GPS·촬영시각·방위)
+```
+
+L2 정규화를 미리 해두면 코사인 유사도가 그냥 내적이 됩니다. 그래서 1,000장 검색이
+행렬-벡터 곱 한 번으로 끝나고, 임베딩만 미리 계산해두면 검색은 1ms 미만입니다.
+
+| | |
+|---|---|
+| 모델 | DINOv3 ViT-S/16 (21M 파라미터, 384차원) |
+| 임베딩 추출 | 약 55–77 img/s (Apple Silicon MPS) |
+| 검색 | 1,000장 < 1ms |
+| 저장 | 이미지당 약 1.5KB |
+| 장치 | MPS / CUDA / CPU 자동 선택 |
+
+---
+
+## 데이터셋
+
+**후쿠오카 Mapillary** (243장) — 크라우드소싱 거리영상. GPS 좌표, 촬영 시각, 나침반 방위,
+Mapillary 원본 링크가 결과에 함께 표시됩니다. 도시 전역을 약 0.8km 타일 격자로 훑어
+수집했습니다.
+
+**CIFAR-10** (1,000장) — 10개 카테고리. 빠른 데모와 위 ablation 평가용. 클래스 레이블이
+있어서 Precision@k를 계산할 수 있습니다.
+
+---
+
+## 실행
+
 ```bash
-# CIFAR-10
+pip install torch transformers gradio pillow numpy tqdm
+
+# 1. 데이터 준비
+python download_dataset.py                      # CIFAR-10 1,000장
+python download_mapillary_fukuoka.py \           # Mapillary (API 토큰 필요)
+    --token "MLY|..." --count 500
+
+# 2. 임베딩 DB 생성
 python build_embedding_database.py --images-dir ./sample_images
 
-# Fukuoka Mapillary
-python build_embedding_database.py \
-  --images-dir ./fukuoka_images \
-  --output ./fukuoka_embeddings.pkl
+# 3. 검색 UI
+python image_search_app.py                      # CIFAR-10
+python mapillary_search_app.py                  # 후쿠오카
 ```
 
----
+Mapillary API 토큰은 https://www.mapillary.com/dashboard/developers 에서 발급합니다.
 
-## 📖 How It Works
+### 더 큰 모델
 
-### Three-Phase Process
-
-**Phase 1: Database Building** (Offline)
-1. Download images from datasets
-2. Preprocess: Resize → CenterCrop → Normalize
-3. Extract 384-dim embeddings via DINOv3
-4. L2-normalize for cosine similarity
-5. Save to pickle database
-
-**Phase 2: Query Processing** (Real-time)
-1. User uploads query image
-2. Apply same preprocessing
-3. Extract DINOv3 embedding
-4. L2-normalize query vector
-
-**Phase 3: Similarity Search** (Real-time)
-1. Compute cosine similarity: `database @ query`
-2. Sort by similarity score (descending)
-3. Return top-K results with metadata
-
-### DINOv3 Model
-- Vision Transformer (ViT) architecture
-- Divides image into 16×16 pixel patches
-- Self-supervised learning (no manual labels)
-- Captures semantic visual features: objects, scenes, textures, colors
-
-### Cosine Similarity
-```python
-# When vectors are L2-normalized:
-similarity = embedding1 @ embedding2
-
-# Score interpretation:
-# 0.9+   : Nearly identical
-# 0.7-0.9: Very similar
-# 0.5-0.7: Moderately similar
-# < 0.5  : Dissimilar
-```
-
----
-
-## 🎨 Usage Examples
-
-### Web Interface
-1. Open http://localhost:7860 or http://localhost:7861
-2. Click "Upload Query Image"
-3. Adjust "Number of Results" slider (1-20)
-4. Click "🔍 Search Similar Images"
-5. View gallery with similarity scores
-
-### Programmatic API
-```python
-import torch
-import pickle
-import numpy as np
-
-# Load model and database
-device = torch.device("mps")  # or "cuda" or "cpu"
-model = torch.hub.load("./dinov3", "dinov3_vits16", source="local")
-model = model.to(device).eval()
-
-with open("embeddings_database.pkl", "rb") as f:
-    db = pickle.load(f)
-
-# Extract query embedding
-def get_embedding(image):
-    # [preprocessing code here]
-    with torch.no_grad():
-        emb = model(image_tensor)
-    return emb.cpu().numpy().flatten()
-
-# Search
-query_emb = get_embedding(query_image)
-query_emb /= np.linalg.norm(query_emb)  # Normalize
-similarities = db['embeddings'] @ query_emb
-top_5 = np.argsort(similarities)[::-1][:5]
-results = [db['image_paths'][i] for i in top_5]
-```
-
----
-
-## 📁 Project Structure
-
-```
-dinov3_test/
-├── README.md                        ← You are here
-├── DOCUMENTATION_INDEX.md           ← Documentation navigation
-├── QUICK_START.md                   ← Quick reference
-├── README_IMAGE_SEARCH.md           ← Complete guide
-├── ARCHITECTURE.md                  ← Visual diagrams
-│
-├── dinov3/                          ← DINOv3 model repository
-│
-├── download_dataset.py              ← Download CIFAR-10
-├── download_mapillary_fukuoka.py    ← Download Mapillary images
-├── build_embedding_database.py      ← Extract embeddings
-├── image_search_app.py              ← CIFAR-10 web UI
-├── mapillary_search_app.py          ← Fukuoka Mapillary web UI
-│
-├── sample_images/                   ← CIFAR-10 dataset
-├── fukuoka_images/                  ← Mapillary dataset
-├── embeddings_database.pkl          ← CIFAR-10 embeddings
-└── fukuoka_embeddings.pkl           ← Fukuoka embeddings
-```
-
----
-
-## 🌍 Mapillary Integration
-
-### Getting an API Token
-1. Sign up at https://www.mapillary.com
-2. Visit https://www.mapillary.com/dashboard/developers
-3. Click "Register Application"
-4. Copy your token (format: `MLY|####|####`)
-
-### Download Images
 ```bash
-python download_mapillary_fukuoka.py \
-  --token "MLY|your_token_here" \
-  --count 500 \
-  --output-dir ./fukuoka_images
+python build_embedding_database.py --model-id facebook/dinov3-vitb16-pretrain-lvd1689m
 ```
 
-### Geographic Coverage
-- **Current**: Fukuoka, Japan (33.59°N, 130.40°E)
-- **Customizable**: Modify `fukuoka_center` in script
-- **Grid-based**: Searches ~0.8km tiles to cover city
+| 모델 | 파라미터 | 차원 |
+|---|---|---|
+| `dinov3-vits16` | 21M | 384 ← 기본 |
+| `dinov3-vitb16` | 86M | 768 |
+| `dinov3-vitl16` | 304M | 1024 |
 
 ---
 
-## 🔧 Advanced Usage
+## 한계
 
-### Use Different DINOv3 Models
-```bash
-# Larger model (better accuracy, slower)
-python build_embedding_database.py --model dinov3_vitb16
-
-# Launch with larger model
-python image_search_app.py --model dinov3_vitb16
-```
-
-Available models:
-- `dinov3_vits16` (21M params, 384-dim) ← **Currently used**
-- `dinov3_vitb16` (86M params, 768-dim)
-- `dinov3_vitl16` (304M params, 1024-dim)
-
-### Custom Datasets
-```bash
-# 1. Organize images
-your_dataset/
-  ├── category1/
-  └── category2/
-
-# 2. Build embeddings
-python build_embedding_database.py \
-  --images-dir ./your_dataset \
-  --output ./your_embeddings.pkl
-
-# 3. Launch UI
-python image_search_app.py --database ./your_embeddings.pkl
-```
-
-### Scale to Larger Datasets
-For 10,000+ images, consider:
-- **FAISS**: Approximate nearest neighbor search
-- **Database sharding**: Geographic/categorical partitioning
-- **Dimensionality reduction**: PCA to reduce storage
+- **243장은 작습니다.** 후쿠오카 전역을 덮지 못하므로, 질의 사진과 같은 거리의 이미지가
+  DB에 없으면 엉뚱한 결과가 나옵니다. 검색 품질과 커버리지를 분리해서 봐야 합니다
+- **전수 검색**입니다. 1만 장을 넘기면 FAISS 같은 근사 최근접 탐색이 필요합니다
+- **CIFAR-10 Precision@k가 거리영상 성능을 대표하지 않습니다.** 32×32 물체 분류와
+  거리 장면 매칭은 다른 문제입니다. 거리영상 쪽 정답 레이블이 없어 아직 정량 평가를
+  못 했고, GPS 좌표로 "상위 결과가 질의 위치에서 몇 m 안에 있는가"를 재는 것이 다음 작업입니다
 
 ---
 
-## 🐛 Troubleshooting
+## 라이선스
 
-### Port Already in Use
-```bash
-# Use different port
-python image_search_app.py --port 7862
-```
+**DINOv3 가중치는 Apache 2.0이 아닙니다.** Apache 2.0은 DINOv2이고, DINOv3는 Meta의 별도
+DINOv3 License로 배포됩니다. 상용 목적이면 조건을 먼저 확인하세요.
 
-### Out of Memory
-- Close other applications
-- Use smaller model: `dinov3_vits16`
-- Process images one at a time
+- 논문: Siméoni et al., "DINOv3", [arXiv:2508.10104](https://arxiv.org/abs/2508.10104)
+- 모델: [facebook/dinov3-vits16-pretrain-lvd1689m](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m)
+- CIFAR-10: Krizhevsky, 2009
+- Mapillary: 크라우드소싱 거리영상, [API 문서](https://www.mapillary.com/developer/api-documentation)
 
-### Slow Performance
-- Check GPU is detected: `torch.backends.mps.is_available()`
-- Verify embeddings are pre-computed
-- Update PyTorch to latest version
-
-### Poor Search Results
-- Ensure query image similar to database content
-- Check similarity scores (low scores = dissimilar)
-- Verify preprocessing applied correctly
-
-**See [QUICK_START.md](QUICK_START.md) and [README_IMAGE_SEARCH.md](README_IMAGE_SEARCH.md) for detailed troubleshooting.**
-
----
-
-## 📈 Performance Metrics
-
-### Embedding Extraction
-- Apple Silicon (MPS): ~55-77 images/second
-- CUDA GPU: ~80-120 images/second
-- CPU: ~5-10 images/second
-
-### Search Speed
-- 1,000 images: < 1ms
-- 10,000 images: ~10ms
-- 100,000 images: ~100ms
-
-### Storage Requirements
-- Per image: ~1.5 KB (384-dim float32)
-- 1,000 images: ~1.5 MB
-- 100,000 images: ~150 MB
-
----
-
-## 🔗 References
-
-### DINOv3
-- **Paper**: [DINOv3: Vision Foundation Model (arXiv:2508.10104)](https://arxiv.org/abs/2508.10104)
-- **Official Site**: https://ai.meta.com/dinov3/
-- **GitHub**: https://github.com/facebookresearch/dinov3
-
-### Mapillary
-- **API Documentation**: https://www.mapillary.com/developer/api-documentation
-- **Platform**: https://www.mapillary.com/
-
-### Technologies
-- **PyTorch**: https://pytorch.org/
-- **Gradio**: https://gradio.app/
-- **NumPy**: https://numpy.org/
-
----
-
-## 📝 License & Credits
-
-**DINOv3 Model:**
-- Developed by Meta AI Research
-- License: Apache 2.0
-
-**Datasets:**
-- CIFAR-10: Learning Multiple Layers of Features from Tiny Images (Krizhevsky, 2009)
-- Mapillary: Crowdsourced street-level imagery
-
-**This Implementation:**
-- Educational and research purposes
-- Uses publicly available tools and APIs
-
----
-
-## 🎓 Learn More
-
-- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete documentation guide
-- **[QUICK_START.md](QUICK_START.md)** - Quick commands and reference
-- **[README_IMAGE_SEARCH.md](README_IMAGE_SEARCH.md)** - Technical deep dive
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Visual diagrams and architecture
-
----
-
-**System Version:** 1.0
-**Last Updated:** 2025-12-08
-**Status:** ✅ Both systems operational
-- CIFAR-10 Demo: http://localhost:7860
-- Fukuoka Mapillary: http://localhost:7861
+이 구현은 학습·연구 목적입니다.
